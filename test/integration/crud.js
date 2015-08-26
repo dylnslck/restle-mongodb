@@ -25,13 +25,13 @@ test(`find('users') should be empty`, assert => {
   });
 });
 
-test(`create('users')`, assert => {
+test(`createResource('users')`, assert => {
   const user = {
     'name': 'Billy Smith',
     'email': 'bs@gmail.com',
   };
 
-  adapter.create('users', user).then(doc => {
+  adapter.createResource('users', user).then(doc => {
     assert.ok(doc.id, 'an id was assigned to the user');
     assert.end();
   });
@@ -42,28 +42,20 @@ test(`find('users') then findOne('users', :firstId) then update('users', :firstI
     assert.equal(docs.length, 1, 'should be one user in database');
 
     const id = docs[0].id;
-    adapter.findOne('users', id).then(doc => {
+    adapter.findResource('users', id).then(doc => {
       assert.deepEqual(doc, {
         'name': 'Billy Smith',
         'email': 'bs@gmail.com',
         'id': `${id}`,
       }, 'user is looking good');
 
-      adapter.update('users', id, { name: 'Bobby Smith' }).then(update => {
+      adapter.updateResource('users', id, { name: 'Bobby Smith' }).then(update => {
         assert.ok(update, 'update was successfull');
 
-        adapter.delete('users', id).then(deletion => {
+        adapter.deleteResource('users', id).then(deletion => {
           assert.ok(deletion, 'deletion was successfull');
           assert.end();
-        }, (err) => {
-          console.log(err);
-          assert.fail('deletion failed');
-          assert.end();
         });
-      }, (err) => {
-        console.log(err);
-        assert.fail('update failed');
-        assert.end();
       });
     });
   });
