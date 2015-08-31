@@ -1,9 +1,9 @@
-import Adapter from '../../../dist/lib';
+import normalizeCollectionName from '../../../dist/lib/utils/normalize-collection-name';
 import test from 'tape';
 
 test('normalizeCollectionName', assert => {
   const type = 'User';
-  const collection = Adapter.normalizeCollectionName(type);
+  const collection = normalizeCollectionName(type);
 
   assert.equal(collection, 'users');
   assert.end();

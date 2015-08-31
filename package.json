@@ -38,8 +38,10 @@
     "tape": "^4.2.0"
   },
   "dependencies": {
+    "bluebird": "^2.9.34",
     "i": "^0.3.3",
     "lodash": "^3.10.1",
-    "mongodb": "^2.0.42"
+    "mongodb": "^2.0.42",
+    "prettyjson": "^1.1.3"
   }
 }
