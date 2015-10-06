@@ -308,8 +308,75 @@ test(`appendRelationship`, assert => {
   });
 });
 
-test(`deleteRelationship`, assert => {
+test(`removeRelationship`, assert => {
+  adapter.find(animal)
 
+  .then(docs => {
+    assert.deepEqual(docs[0], {
+      id: `${docs[0].id}`,
+      species: 'Dog',
+      age: 5,
+      owner: {
+        id: `${docs[0].owner.id}`,
+        name: 'Jimmy',
+        email: 'j@gmail.com',
+        pets: docs[0].owner.pets,
+      },
+    }, 'first animal has good looking json');
+
+    return adapter.removeRelationship(animal, docs[0].id, 'owner');
+  })
+
+  .then(success => {
+    assert.ok(success, 'owner relationship successfully removed');
+
+    return adapter.find(animal);
+  })
+
+  .then(docs => {
+    assert.deepEqual(docs[0], {
+      id: `${docs[0].id}`,
+      species: 'Dog',
+      age: 5,
+    }, 'first animal has good looking json');
+
+    assert.end();
+  });
+});
+
+test(`deleteRelationship`, assert => {
+  Promise.props({
+    people: adapter.find(person),
+    animals: adapter.find(animal),
+  })
+
+  .then(docs => {
+    return adapter.deleteRelationship(person, docs.people[0].id, 'pets', docs.animals[0].id);
+  })
+
+  .then(success => {
+    assert.ok(success, 'successfully deleted a pet from the pets relationship');
+
+    return Promise.props({
+      people: adapter.find(person),
+      animals: adapter.find(animal),
+    });
+  })
+
+  .then(docs => {
+    assert.deepEqual(docs.people[0], {
+      id: `${docs.people[0].id}`,
+      name: 'Jimmy',
+      email: 'j@gmail.com',
+      pets: [{
+        id: `${docs.animals[1].id}`,
+        species: 'Zebra',
+        age: 14,
+      }],
+    }, 'first person only has one pet now');
+
+    assert.end();
+  });
 });
 
 after(`disconnect adapter from database`, assert => {
