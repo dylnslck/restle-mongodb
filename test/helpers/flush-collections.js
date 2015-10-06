@@ -1,18 +1,33 @@
+import Promise from 'bluebird';
+import { Collection } from 'mongodb';
+
 export default function flushCollections(assert, db, done) {
-  const users = db.collection('users');
-  const posts = db.collection('posts');
-  const comments = db.collection('comments');
+  const collections = {
+    people: db.collection('people'),
+    animals: db.collection('animals'),
+    companies: db.collection('companies'),
+    habitats: db.collection('habitats'),
+    buildings: db.collection('buildings'),
+    countries: db.collection('countries'),
+  };
 
-  users.remove(usersErr => {
-    assert.error(usersErr, 'no errors when removing users collection');
+  Promise.promisify(Collection);
 
-    posts.remove(postsErr => {
-      assert.error(postsErr, 'no errors when removing posts collection');
+  Promise.all([
+    collections.people.remove(),
+    collections.animals.remove(),
+    collections.companies.remove(),
+    collections.habitats.remove(),
+    collections.buildings.remove(),
+    collections.countries.remove(),
+  ])
 
-      comments.remove(commentsErr => {
-        assert.error(commentsErr, 'no errors when removing comments collection');
-        done();
-      });
-    });
+  .then(success => {
+    assert.ok(success, 'successfully flushed collections');
+    done();
+  })
+
+  .catch(errors => {
+    assert.fail(errors, 'no errors removing collections');
   });
 }
