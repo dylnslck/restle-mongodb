@@ -114,6 +114,22 @@ test(`createResource`, assert => {
   });
 });
 
+test('find(person) with attribute query then find(person) with relationship query', assert => {
+  let id;
+  adapter.find(person, null, { name: 'Billy' })
+
+  .then(docs => {
+    id = docs[0].id;
+    assert.ok(id, 'first person has an id');
+    return adapter.find(animal, null, { owner: `${id}`});
+  })
+
+  .then(docs => {
+    assert.equal(docs[0].owner.id, id, `animal's owner and saved id match`);
+    assert.end();
+  });
+});
+
 test(`find(person) then findResource(person, :firstId) then updateResource(person, :firstId) then deleteResource(person, :firstId)`, assert => {
   adapter.find(person)
 
