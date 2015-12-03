@@ -15,10 +15,6 @@ const app = new Restle({ adapter });
 
 const person = app.register('person', schemas.person);
 const animal = app.register('animal', schemas.animal);
-const building = app.register('building', schemas.building);
-const habitat = app.register('habitat', schemas.habitat);
-const company = app.register('company', schemas.company);
-const country = app.register('country', schemas.country);
 
 before('flush collections', assert => {
   const MongoClient = mongodb.MongoClient;

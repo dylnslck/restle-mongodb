@@ -1,8 +1,8 @@
 export default {
   person: {
     attributes: {
-      name: { type: 'string', },
-      email: { type: 'string', },
+      name: { type: 'string' },
+      email: { type: 'string' },
     },
     relationships: {
       pets: { type: 'animal', isMany: true },
