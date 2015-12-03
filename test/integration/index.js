@@ -41,8 +41,8 @@ test(`find(person) should be empty`, assert => {
   });
 });
 
-test(`createResource`, assert => {
-  adapter.createResource(person, {
+test(`create`, assert => {
+  adapter.create(person, {
     name: 'Billy',
     email: 'b@gmail.com',
   })
@@ -55,7 +55,7 @@ test(`createResource`, assert => {
       id: `${doc.id}`,
     }, 'created person with no relationships has good looking json');
 
-    return adapter.createResource(animal, {
+    return adapter.create(animal, {
       species: 'Dog',
       age: 5,
       owner: `${doc.id}`,
@@ -75,7 +75,7 @@ test(`createResource`, assert => {
       },
     }, 'created animal with to-one has good looking json');
 
-    return adapter.createResource(person, {
+    return adapter.create(person, {
       name: 'Jimmy',
       email: 'j@gmail.com',
       pets: [ `${doc.id}` ],
@@ -96,7 +96,7 @@ test(`createResource`, assert => {
       }],
     }, 'created person with to-many has good looking json');
 
-    return adapter.createResource(animal, {
+    return adapter.create(animal, {
       species: 'Zebra',
       age: 14,
     });
@@ -114,283 +114,425 @@ test(`createResource`, assert => {
   });
 });
 
-test('find(person) with attribute query then find(person) with relationship query', assert => {
-  let id;
-  adapter.find(person, null, { name: 'Billy' })
+test('retrieve(person)', assert => {
+  adapter.retrieve(person).then(people => {
+    assert.equal(people.length, 2, 'two people retrieved');
 
-  .then(docs => {
-    id = docs[0].id;
-    assert.ok(id, 'first person has an id');
-    return adapter.find(animal, null, { owner: `${id}`});
-  })
+    return adapter.retrieve(person, [people[0].id, people[1].id]);
+  }).then(people => {
+    assert.equal(people.length, 2, 'two people retrieved');
 
-  .then(docs => {
-    assert.equal(docs[0].owner.id, id, `animal's owner and saved id match`);
+    return adapter.retrieve(person, people[0].id);
+  }).then(person => {
+    assert.deepEqual(person, {
+      id: person.id,
+      name: 'Billy',
+      email: 'b@gmail.com',
+    }, 'retrieved person looks good');
     assert.end();
   });
 });
 
 test(`find(person) then findResource(person, :firstId) then updateResource(person, :firstId) then deleteResource(person, :firstId)`, assert => {
-  adapter.find(person)
+  adapter.find(person).then(people => {
+    assert.equal(people.length, 2, 'should be two people in database');
 
-  // retrieve all people
-  .then(docs => {
-    assert.equal(docs.length, 2, 'should be two people in database');
-
-    return adapter.findResource(person, docs[0].id);
-  })
-
-  // retrieve first person
-  .then(doc => {
+    return adapter.findRecord(person, people[0].id);
+  }).then(doc => {
     assert.deepEqual(doc, {
       id: `${doc.id}`,
       name: 'Billy',
       email: 'b@gmail.com',
     }, 'first person in database has good looking json');
 
-    return adapter.updateResource(person, doc.id, {
+    return adapter.update(person, doc.id, {
       name: 'Bobby',
     });
-  })
-
-  // update user
-  .then(success => {
-    assert.ok(success, 'user successfully updated');
-  })
-
-  // find people to make sure attributes changed
-  .then(() => {
-    return adapter.find(person);
-  })
-
-  .then(docs => {
-    assert.deepEqual(docs[0], {
-      id: `${docs[0].id}`,
+  }).then(doc => {
+    assert.deepEqual(doc, {
+      id: `${doc.id}`,
       name: 'Bobby',
       email: 'b@gmail.com',
     }, 'first user attributes changed properly');
 
-    return adapter.deleteResource(person, docs[0].id);
-  })
-
-  // successfully deleted
-  .then(success => {
+    return adapter.delete(person, doc.id);
+  }).then(success => {
     assert.ok(success, 'user successfully deleted');
 
     return adapter.find(person);
-  })
-
-  // make sure only one user in the db now
-  .then(docs => {
+  }).then(docs => {
     assert.equal(docs.length, 1, 'only one person in the database now');
     assert.end();
-  })
-
-  // catch errors
-  .catch(errors => {
-    assert.fail(errors);
   });
 });
 
-test(`setRelationship`, assert => {
+test(`update relationships`, assert => {
   Promise.props({
     people: adapter.find(person),
     animals: adapter.find(animal),
-  })
+  }).then(({ people, animals }) => {
+    const responses = [[{
+      id: people[0].id,
+      name: 'Jimmy',
+      email: 'j@gmail.com',
+      pets: [{
+        id: people[0].pets[0].id,
+        species: 'Dog',
+        owner: people[0].pets[0].owner,
+        age: 5,
+      }],
+    }], [{
+      id: animals[0].id,
+      species: 'Dog',
+      age: 5,
+      owner: undefined,
+    }, {
+      id: animals[1].id,
+      species: 'Zebra',
+      age: 14,
+    }]];
 
-  .then(docs => {
-    return adapter.setRelationship(animal, docs.animals[0].id, 'owner', docs.people[0].id);
-  })
+    responses[0].count = 1;
+    responses[1].count = 2;
 
-  .then(success => {
-    assert.ok(success, 'successfully set the new owner');
+    assert.deepEqual(people, responses[0], 'retrieved people look good');
+    assert.deepEqual(animals, responses[1], 'retrieved animals look good');
 
     return Promise.props({
-      people: adapter.find(person),
-      animals: adapter.find(animal),
+      person: adapter.update(person, people[0].id, { pets: [ animals[0].id ] }),
+      animal: adapter.update(animal, animals[0].id, { owner: people[0].id }),
     });
-  })
-
-  .then(docs => {
-    assert.deepEqual(docs.animals[0], {
-      id: `${docs.animals[0].id}`,
+  }).then(({ person, animal }) => {
+    const responses = [{
+      id: person.id,
+      name: 'Jimmy',
+      email: 'j@gmail.com',
+      pets: [{
+        id: person.pets[0].id,
+        species: 'Dog',
+        owner: person.pets[0].owner,
+        age: 5,
+      }],
+    }, {
+      id: animal.id,
       species: 'Dog',
       age: 5,
       owner: {
-        id: `${docs.people[0].id}`,
+        id: animal.owner.id,
         name: 'Jimmy',
         email: 'j@gmail.com',
-        pets: [ `${docs.animals[0].id}` ],
+        pets: [ animal.owner.pets[0] ],
       },
-    }, 'animal json looks good with new owner');
+    }];
 
+    assert.deepEqual(person, responses[0], 'updated person look good');
+    assert.deepEqual(animal, responses[1], 'updated animal look good');
     assert.end();
   });
 });
 
-test(`findRelated`, assert => {
-  adapter.find(animal)
-
-  .then(docs => {
-    return adapter.findRelated(animal, docs[0].id, 'owner');
-  })
-
-  .then(doc => {
-    assert.deepEqual(doc, {
-      id: `${doc.id}`,
-      name: 'Jimmy',
-      email: 'j@gmail.com',
-      pets: [{
-        id: `${doc.pets[0].id}`,
-        species: 'Dog',
-        age: 5,
-        owner: `${doc.pets[0].owner}`,
-      }],
-    }, 'pets owner has good looking json');
-
-    return adapter.find(person);
-  })
-
-  .then(docs => {
-    return adapter.findRelated(person, docs[0].id, 'pets');
-  })
-
-  .then(docs => {
-    assert.deepEqual(docs, [{
-      id: `${docs[0].id}`,
+test('sort', assert => {
+  adapter.find(animal, {
+    sort: { species: 'desc' },
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Zebra',
+      age: 14,
+    }, {
+      id: animals[1].id,
       species: 'Dog',
       age: 5,
       owner: {
-        id: `${docs[0].owner.id}`,
+        id: animals[1].owner.id,
         name: 'Jimmy',
         email: 'j@gmail.com',
-        pets: [ `${docs[0].id}` ],
+        pets: animals[1].owner.pets,
       },
-    }], 'person pets has good looking json');
+    }];
 
-    assert.end();
-  });
-});
+    response.count = 2;
+    assert.deepEqual(animals, response, 'sorted animals looks good');
 
-test(`appendRelationship`, assert => {
-  Promise.props({
-    people: adapter.find(person),
-    animals: adapter.find(animal),
-  })
-
-  .then(docs => {
-    assert.deepEqual(docs.people[0], {
-      id: `${docs.people[0].id}`,
-      name: 'Jimmy',
-      email: 'j@gmail.com',
-      pets: [{
-        id: `${docs.animals[0].id}`,
-        species: 'Dog',
-        age: 5,
-        owner: `${docs.people[0].id}`,
-      }],
-    }, 'first person has one pet and good looking json');
-
-    return adapter.appendRelationship(person, docs.people[0].id, 'pets', docs.animals[1].id);
-  })
-
-  .then(success => {
-    assert.ok(success, 'successfully appended relationship');
-
-    return Promise.props({
-      people: adapter.find(person),
-      animals: adapter.find(animal),
+    return adapter.find(animal, {
+      sort: { species: 'asc' },
     });
-  })
-
-  .then(docs => {
-    assert.deepEqual(docs.people[0], {
-      id: `${docs.people[0].id}`,
-      name: 'Jimmy',
-      email: 'j@gmail.com',
-      pets: [{
-        id: `${docs.animals[0].id}`,
-        species: 'Dog',
-        age: 5,
-        owner: `${docs.people[0].id}`,
-      }, {
-        id: `${docs.animals[1].id}`,
-        species: 'Zebra',
-        age: 14,
-      }],
-    }, 'first person has two pets and good looking json');
-
-    assert.end();
-  });
-});
-
-test(`removeRelationship`, assert => {
-  adapter.find(animal)
-
-  .then(docs => {
-    assert.deepEqual(docs[0], {
-      id: `${docs[0].id}`,
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
       species: 'Dog',
       age: 5,
       owner: {
-        id: `${docs[0].owner.id}`,
+        id: animals[0].owner.id,
         name: 'Jimmy',
         email: 'j@gmail.com',
-        pets: docs[0].owner.pets,
+        pets: animals[0].owner.pets,
       },
-    }, 'first animal has good looking json');
+    }, {
+      id: animals[1].id,
+      species: 'Zebra',
+      age: 14,
+    }];
 
-    return adapter.removeRelationship(animal, docs[0].id, 'owner');
-  })
+    response.count = 2;
+    assert.deepEqual(animals, response, 'sorted animals looks good');
 
-  .then(success => {
-    assert.ok(success, 'owner relationship successfully removed');
-
-    return adapter.find(animal);
-  })
-
-  .then(docs => {
-    assert.deepEqual(docs[0], {
-      id: `${docs[0].id}`,
+    return adapter.find(animal, {
+      sort: { age: 'asc' },
+    });
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
       species: 'Dog',
       age: 5,
-    }, 'first animal has good looking json');
+      owner: {
+        id: animals[0].owner.id,
+        name: 'Jimmy',
+        email: 'j@gmail.com',
+        pets: animals[0].owner.pets,
+      },
+    }, {
+      id: animals[1].id,
+      species: 'Zebra',
+      age: 14,
+    }];
 
+    response.count = 2;
+    assert.deepEqual(animals, response, 'sorted animals looks good');
+
+    return adapter.find(animal, {
+      sort: { age: 'desc' },
+    });
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Zebra',
+      age: 14,
+    }, {
+      id: animals[1].id,
+      species: 'Dog',
+      age: 5,
+      owner: {
+        id: animals[1].owner.id,
+        name: 'Jimmy',
+        email: 'j@gmail.com',
+        pets: animals[1].owner.pets,
+      },
+    }];
+
+    response.count = 2;
+    assert.deepEqual(animals, response, 'sorted animals looks good');
+
+    return adapter.find(animal, {
+      sort: { species: 'asc', age: 'desc' },
+    });
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Dog',
+      age: 5,
+      owner: {
+        id: animals[0].owner.id,
+        name: 'Jimmy',
+        email: 'j@gmail.com',
+        pets: animals[0].owner.pets,
+      },
+    }, {
+      id: animals[1].id,
+      species: 'Zebra',
+      age: 14,
+    }];
+
+    response.count = 2;
+    assert.deepEqual(animals, response, 'sorted animals looks good');
     assert.end();
   });
 });
 
-test(`deleteRelationship`, assert => {
-  Promise.props({
-    people: adapter.find(person),
-    animals: adapter.find(animal),
-  })
+test('filter', assert => {
+  adapter.find(animal, {
+    filter: { age: 14 },
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Zebra',
+      age: 14,
+    }];
 
-  .then(docs => {
-    return adapter.deleteRelationship(person, docs.people[0].id, 'pets', docs.animals[0].id);
-  })
+    response.count = 1;
+    assert.deepEqual(animals, response, 'filtered animals looks good');
 
-  .then(success => {
-    assert.ok(success, 'successfully deleted a pet from the pets relationship');
-
-    return Promise.props({
-      people: adapter.find(person),
-      animals: adapter.find(animal),
+    return adapter.find(animal, {
+      filter: { age: { $lt: 14 } },
     });
-  })
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Dog',
+      age: 5,
+      owner: {
+        id: animals[0].owner.id,
+        name: 'Jimmy',
+        email: 'j@gmail.com',
+        pets: animals[0].owner.pets,
+      },
+    }];
 
-  .then(docs => {
-    assert.deepEqual(docs.people[0], {
-      id: `${docs.people[0].id}`,
-      name: 'Jimmy',
+    response.count = 1;
+    assert.deepEqual(animals, response, 'filtered animals looks good');
+
+    return adapter.find(animal, {
+      filter: { age: { $gt: 10, $lt: 20 } },
+    });
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Zebra',
+      age: 14,
+    }];
+
+    response.count = 1;
+    assert.deepEqual(animals, response, 'filtered animals looks good');
+
+    return adapter.find(animal, {
+      filter: { age: { $lte: 14 }, species: 'Zebra' },
+    });
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Zebra',
+      age: 14,
+    }];
+
+    response.count = 1;
+    assert.deepEqual(animals, response, 'filtered animals looks good');
+
+    return adapter.find(animal, {
+      filter: { age: { $lte: 20 }, species: { $in: [ 'Dog', 'Panther' ] } },
+    });
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Dog',
+      age: 5,
+      owner: {
+        id: animals[0].owner.id,
+        name: 'Jimmy',
+        email: 'j@gmail.com',
+        pets: animals[0].owner.pets,
+      },
+    }];
+
+    response.count = 1;
+    assert.deepEqual(animals, response, 'filtered animals looks good');
+
+    return adapter.find(animal, {
+      filter: { species: { $nin: [ 'Dog', 'Zebra' ] } },
+    });
+  }).then(animals => {
+    const response = [];
+
+    response.count = 0;
+    assert.deepEqual(animals, response, 'filtered animals looks good');
+    assert.end();
+  });
+});
+
+test('fields', assert => {
+  adapter.find(person, {
+    fields: {
+      name: false,
+      pets: false,
+    },
+  }).then(people => {
+    const response = [{
+      id: people[0].id,
       email: 'j@gmail.com',
-      pets: [{
-        id: `${docs.animals[1].id}`,
-        species: 'Zebra',
-        age: 14,
-      }],
-    }, 'first person only has one pet now');
+    }];
 
+    response.count = 1;
+    assert.deepEqual(people, response, 'fields people looks good');
+    assert.end();
+  });
+});
+
+test('paginate', assert => {
+  adapter.find(animal, {
+    page: { offset: 0, limit: 2 },
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Dog',
+      age: 5,
+      owner: {
+        id: animals[0].owner.id,
+        name: 'Jimmy',
+        email: 'j@gmail.com',
+        pets: animals[0].owner.pets,
+      },
+    }, {
+      id: animals[1].id,
+      species: 'Zebra',
+      age: 14,
+    }];
+
+    response.count = 2;
+    assert.deepEqual(animals, response, 'paginated animals looks good');
+
+    return adapter.find(animal, {
+      page: { offset: 1, limit: 2 },
+    });
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Zebra',
+      age: 14,
+    }];
+
+    response.count = 2;
+    assert.deepEqual(animals, response, 'paginated animals looks good');
+
+    return adapter.find(animal, {
+      page: { offset: 2, limit: 2 },
+    });
+  }).then(animals => {
+    const response = [];
+
+    response.count = 2;
+    assert.deepEqual(animals, response, 'paginated animals looks good');
+
+    return adapter.find(animal, {
+      page: { offset: 0, limit: 1 },
+    });
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Dog',
+      age: 5,
+      owner: {
+        id: animals[0].owner.id,
+        name: 'Jimmy',
+        email: 'j@gmail.com',
+        pets: animals[0].owner.pets,
+      },
+    }];
+
+    response.count = 2;
+    assert.deepEqual(animals, response, 'paginated animals looks good');
+
+    return adapter.find(animal, {
+      filter: { species: 'Zebra' },
+      page: { offset: 0, limit: 1 },
+    });
+  }).then(animals => {
+    const response = [{
+      id: animals[0].id,
+      species: 'Zebra',
+      age: 14,
+    }];
+
+    response.count = 1;
+    assert.deepEqual(animals, response, 'paginated animals looks good');
     assert.end();
   });
 });
