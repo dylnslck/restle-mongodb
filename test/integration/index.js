@@ -1,3 +1,4 @@
+import { NotFoundError } from 'restle-error';
 import Adapter from '../../../dist/lib';
 import Restle from 'restle';
 import Promise from 'bluebird';
@@ -529,6 +530,20 @@ test('paginate', assert => {
 
     response.count = 1;
     assert.deepEqual(animals, response, 'paginated animals looks good');
+    assert.end();
+  });
+});
+
+test('findRecord AdapterError', assert => {
+  adapter.findRecord(person, '123456789').catch(err => {
+    assert.ok(err instanceof AdapterError, 'err is a AdapterError');
+    assert.end();
+  });
+});
+
+test('findRecord NotFoundError', assert => {
+  adapter.findRecord(person, '5660c98482e4edcc28cf31c4').catch(err => {
+    assert.ok(err instanceof NotFoundError, 'err is a NotFoundError');
     assert.end();
   });
 });
