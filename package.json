@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dcslack/restle-mongodb.git"
+    "url": "git+https://github.com/dylnslck/restle-mongodb.git"
   },
-  "author": "Dylan Slack <dylanslack@gmail.com> (http://www.dylanslack.me)",
+  "author": "Dylan Slack <dylanslack@gmail.com> (http://www.dylanslack.com)",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/dcslack/restle-mongodb/issues"
+    "url": "https://github.com/dylnslck/restle-mongodb/issues"
   },
-  "homepage": "https://github.com/dcslack/restle-mongodb#readme",
+  "homepage": "https://github.com/dylnslck/restle-mongodb#readme",
   "files": [
     "dist/lib",
     "dist/test",
