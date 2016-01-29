@@ -2,7 +2,7 @@
 MongoDB persistence layer adapter used for [Restle](https://github.com/dcslack/restle).
 
 [![npm version](https://badge.fury.io/js/restle-mongodb.svg)](http://badge.fury.io/js/restle-mongodb)
-[![Build Status](https://travis-ci.org/dcslack/restle-mongodb.svg)](https://travis-ci.org/dcslack/restle-mongodb)
+[![Build Status](https://travis-ci.org/dylnslck/restle-mongodb.svg)](https://travis-ci.org/dylnslck/restle-mongodb)
 
 ```sh
 $ npm install restle --save
